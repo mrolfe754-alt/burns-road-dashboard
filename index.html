@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Burns Road — Sales Reconciliation Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#0d1117; --panel:#161b22; --panel2:#1c232d; --line:#283040;
+  --ink:#e6edf3; --mut:#8b98a8; --acc:#39d3a0; --acc2:#ffb347;
+  --bad:#ff5c5c; --good:#39d3a0; --warn:#ffb347;
+  --font:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(1200px 600px at 80% -10%,#15263a 0%,var(--bg) 55%);
+  color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 22px 60px}
+header.top{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:16px;
+  border-bottom:1px solid var(--line);padding-bottom:18px;margin-bottom:24px}
+.brand{display:flex;align-items:center;gap:14px}
+.logo{width:46px;height:46px;border-radius:13px;background:linear-gradient(135deg,var(--acc),#1f9e7a);
+  display:grid;place-items:center;font-weight:800;font-size:20px;color:#06241c;box-shadow:0 6px 20px rgba(57,211,160,.25)}
+.brand h1{font-size:21px;margin:0;letter-spacing:-.3px;font-weight:700}
+.brand p{margin:2px 0 0;color:var(--mut);font-size:12.5px}
+.meta{text-align:right;color:var(--mut);font-size:12px}
+.meta b{color:var(--ink)}
+.controls{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;background:var(--panel);
+  border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:24px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--mut)}
+select,input[type=date]{background:var(--panel2);border:1px solid var(--line);color:var(--ink);
+  border-radius:9px;padding:9px 11px;font-size:13px;font-family:var(--font);outline:none}
+select:focus,input:focus{border-color:var(--acc)}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{cursor:pointer;user-select:none;border:1px solid var(--line);background:var(--panel2);
+  color:var(--mut);padding:8px 13px;border-radius:20px;font-size:12.5px;font-weight:600;transition:.15s}
+.chip.on{color:#06241c;background:var(--acc);border-color:var(--acc)}
+.spacer{flex:1}
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:24px}
+.kpi{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);
+  border-radius:14px;padding:16px 16px 14px;position:relative;overflow:hidden}
+.kpi::after{content:'';position:absolute;right:-20px;top:-20px;width:70px;height:70px;border-radius:50%;
+  background:radial-gradient(circle,rgba(57,211,160,.18),transparent 70%)}
+.kpi .lb{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--mut)}
+.kpi .vv{font-size:23px;font-weight:750;margin-top:6px;letter-spacing:-.5px}
+.kpi .sub{font-size:11.5px;color:var(--mut);margin-top:3px}
+.v-good{color:var(--good)} .v-bad{color:var(--bad)} .v-warn{color:var(--warn)}
+.grid{display:grid;grid-template-columns:1.35fr 1fr;gap:18px;margin-bottom:18px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px 18px 14px}
+.card h3{margin:0 0 4px;font-size:15px;font-weight:700}
+.card .hint{color:var(--mut);font-size:12px;margin:0 0 12px}
+canvas{max-width:100%}
+.bridge{display:flex;flex-direction:column;gap:9px}
+.brow{display:grid;grid-template-columns:150px 1fr 96px;align-items:center;gap:10px}
+.brow .nm{font-size:12.5px;color:var(--mut)}
+.brow .bar{height:26px;background:var(--panel2);border-radius:7px;position:relative;overflow:hidden}
+.brow .fill{height:100%;border-radius:7px;background:linear-gradient(90deg,#2b6cff,#5b8dff)}
+.brow .fill.disc{background:linear-gradient(90deg,#ff8a3d,#ffb347)}
+.brow .fill.fee{background:linear-gradient(90deg,#b35bff,#d29bff)}
+.brow .fill.pay{background:linear-gradient(90deg,var(--acc),#2bb98c)}
+.brow .val{text-align:right;font-variant-numeric:tabular-nums;font-weight:650;font-size:13px}
+.bridge .axis{height:1px;background:var(--line);margin:2px 0}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{text-align:right;padding:8px 9px;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--mut);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+td.num{font-variant-numeric:tabular-nums}
+.pos{color:var(--good)} .neg{color:var(--bad)}
+.note{background:rgba(255,179,71,.08);border:1px solid rgba(255,179,71,.35);border-radius:12px;
+  padding:13px 15px;color:#ffd79a;font-size:12.5px;margin-top:14px;line-height:1.6}
+.note b{color:#ffe6bd}
+.legend{display:flex;gap:16px;flex-wrap:wrap;color:var(--mut);font-size:11.5px;margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:middle}
+.foot{color:var(--mut);font-size:11.5px;text-align:center;margin-top:30px;border-top:1px solid var(--line);padding-top:16px}
+@media(max-width:880px){.kpis{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <div class="logo">BR</div>
+      <div><h1>Burns Road — Sales Reconciliation</h1>
+      <p>Srvey (book) vs aggregator &amp; terminal reports · gross-level, UAE VAT 5%</p></div>
+    </div>
+    <div class="meta">Period <b>2026-06-01 to 2026-06-30</b><br/>Generated <b>2026-07-08</b> · Currency <b>AED</b></div>
+  </header>
+
+  <div class="controls">
+    <div class="field"><label>Channel</label>
+      <div class="chips" id="chips"></div></div>
+    <div class="field"><label>From</label><input type="date" id="from" value="2026-05-31"/></div>
+    <div class="field"><label>To</label><input type="date" id="to" value="2026-06-30"/></div>
+    <div class="spacer"></div>
+    <div class="field"><label>&nbsp;</label><button id="reset" class="chip" style="border-color:var(--acc);color:var(--acc)">Reset</button></div>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Daily Gross — Srvey vs Platform</h3>
+      <p class="hint">Book (Srvey) against the aggregator/terminal report, per selected day &amp; channel.</p>
+      <canvas id="line" height="250"></canvas>
+      <div class="legend">
+        <span><i style="background:#39d3a0"></i>Srvey (book)</span>
+        <span><i style="background:#5b8dff"></i>Platform report</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Payout Bridge</h3>
+      <p class="hint">Gross → less restaurant discounts → less commission/VAT/fees → payout.</p>
+      <div class="bridge" id="bridge"></div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Daily Detail</h3>
+      <p class="hint">Selected range. Diff = Srvey − Platform.</p>
+      <div style="overflow:auto;max-height:340px">
+        <table id="tbl"><thead><tr>
+          <th>Date</th><th>Srvey</th><th>Platform</th><th>Diff</th>
+          <th>Rest. Disc</th><th>Commission</th><th>VAT</th><th>Payout</th><th>Canc.</th>
+        </tr></thead><tbody></tbody></table>
+      </div>
+      <div class="note" id="note"></div>
+    </div>
+    <div class="card">
+      <h3>Composition</h3>
+      <p class="hint">Share of platform gross by channel (selected range).</p>
+      <canvas id="pie" height="250"></canvas>
+      <div class="legend" id="pielg"></div>
+    </div>
+  </div>
+
+  <div class="foot">Burns Road Accounting · reconciled working paper. Figures are gross (incl. VAT).
+  Aggregator-funded promotions are not deducted from the restaurant balance. This is a draft for management review.</div>
+</div>
+
+<script>
+const DATA = {"meta": {"period": "2026-06-01 to 2026-06-30", "currency": "AED", "restaurant": "Burns Road", "generated": "2026-07-08", "note": "Gross reconciliation: Srvey (book) vs aggregator/platform reports. Payout bridge = Gross - restaurant discounts - commission - VAT - fees. Aggregator-funded promos not deducted."}, "channels": [{"channel": "Talabat", "note": "Shortfalls driven by restaurant vouchers + cancellations, not missing sales.", "days": [{"date": "2026-06-02", "srvey": 407.0, "agg": 303.0, "disc_rest": 0.0, "disc_agg": 0.0, "commission": 101.68, "vat": 15.810000000000002, "fees": 0, "payout": 185.45000000000002, "cancelled": 1, "n": 8, "diff": 104.0}, {"date": "2026-06-03", "srvey": 333.0, "agg": 333.0, "disc_rest": 0.0, "disc_agg": 0.0, "commission": 113.95, "vat": 17.04, "fees": 0, "payout": 202.01000000000002, "cancelled": 0, "n": 7, "diff": 0.0}, {"date": "2026-06-04", "srvey": 526.0, "agg": 526.0, "disc_rest": 0.0, "disc_agg": 0.0, "commission": 166.36, "vat": 26.65, "fees": 0, "payout": 332.99, "cancelled": 0, "n": 8, "diff": 0.0}, {"date": "2026-06-05", "srvey": 754.0, "agg": 705.0, "disc_rest": 0.0, "disc_agg": 0.0, "commission": 218.66, "vat": 36.12, "fees": 0, "payout": 450.22, "cancelled": 1, "n": 11, "diff": 49.0}, {"date": "2026-06-06", "srvey": 968.0, "agg": 802.0, "disc_rest": 0.0, "disc_agg": 0.0, "commission": 244.43, "vat": 41.78000000000001, "fees": 0, "payout": 515.78, "cancelled": 0, "n": 12, "diff": 166.0}, {"date": "2026-06-07", "srvey": 559.0, "agg": 679.0, "disc_rest": 0.0, "disc_agg": 0.0, "commission": 203.21, "vat": 35.480000000000004, "fees": 0, "payout": 440.28999999999996, "cancelled": 1, "n": 11, "diff": -120.0}, {"date": "2026-06-09", "srvey": 318.0, "agg": 260.0, "disc_rest": 0.0, "disc_agg": 0.0, "commission": 69.17, "vat": 15.17, "fees": 0, "payout": 175.66000000000003, "cancelled": 1, "n": 7, "diff": 58.0}, {"date": "2026-06-10", "srvey": 515.0, "agg": 515.0, "disc_rest": 0.0, "disc_agg": 0.0, "commission": 159.04, "vat": 26.729999999999997, "fees": 0, "payout": 329.22999999999996, "cancelled": 0, "n": 8, "diff": 0.0}, {"date": "2026-06-11", "srvey": 960.0, "agg": 960.0, "disc_rest": 0.0, "disc_agg": 0.0, "commission": 283.26, "vat": 49.730000000000004, "fees": 0, "payout": 626.9899999999999, "cancelled": 0, "n": 11, "diff": 0.0}, {"date": "2026-06-12", "srvey": 839.0, "agg": 888.0, "disc_rest": 0.0, "disc_agg": 0.0, "commission": 195.03, "vat": 34.529999999999994, "fees": 0, "payout": 500.94000000000005, "cancelled": 0, "n": 10, "diff": -49.0}, {"date": "2026-06-13", "srvey": 1216.0, "agg": 1307.0, "disc_rest": 0.0, "disc_agg": 0.0, "commission": 385.16, "vat": 67.42, "fees": 0, "payout": 854.3299999999999, "cancelled": 1, "n": 16, "diff": -91.0}, {"date": "2026-06-14", "srvey": 1834.0, "agg": 1770.0, "disc_rest": 0.0, "disc_agg": 0.0, "commission": 520.18, "vat": 86.36, "fees": 0, "payout": 1106.46, "cancelled": 0, "n": 20, "diff": 64.0}, {"date": "2026-06-15", "srvey": 38.0, "agg": 38.0, "disc_rest": 0.0, "disc_agg": 0.0, "commission": 14.3, "vat": 1.9, "fees": 0, "payout": 21.8, "cancelled": 0, "n": 1, "diff": 0.0}, {"date": "2026-06-16", "srvey": 714.0, "agg": 714.0, "disc_rest": 0.0, "disc_agg": 0.0, "commission": 218.04, "vat": 35.15, "fees": 0, "payout": 460.81, "cancelled": 0, "n": 6, "diff": 0.0}, {"date": "2026-06-17", "srvey": 437.0, "agg": 437.0, "disc_rest": 0.0, "disc_agg": 0.0, "commission": 129.71, "vat": 23.16, "fees": 0, "payout": 284.12, "cancelled": 0, "n": 7, "diff": 0.0}, {"date": "2026-06-18", "srvey": 792.4, "agg": 817.0, "disc_rest": 24.599999999999998, "disc_agg": 0.0, "commission": 245.25, "vat": 41.45, "fees": 0, "payout": 505.66, "cancelled": 0, "n": 11, "diff": -24.6}, {"date": "2026-06-19", "srvey": 1490.05, "agg": 1596.0, "disc_rest": 135.45000000000002, "disc_agg": 0.0, "commission": 412.34, "vat": 81.91999999999999, "fees": 0, "payout": 966.2399999999998, "cancelled": 1, "n": 16, "diff": -105.95}, {"date": "2026-06-20", "srvey": 1218.35, "agg": 1337.0, "disc_rest": 118.64999999999999, "disc_agg": 0.0, "commission": 359.1, "vat": 69.19, "fees": 0, "payout": 790.06, "cancelled": 0, "n": 17, "diff": -118.65}, {"date": "2026-06-21", "srvey": 2115.6, "agg": 2230.0, "disc_rest": 207.9, "disc_agg": 0.0, "commission": 613.83, "vat": 112.15000000000002, "fees": 0, "payout": 1296.1100000000001, "cancelled": 3, "n": 27, "diff": -114.4}, {"date": "2026-06-23", "srvey": 864.5, "agg": 938.0, "disc_rest": 57.900000000000006, "disc_agg": 0.0, "commission": 259.16, "vat": 44.4, "fees": 0, "payout": 543.6400000000001, "cancelled": 1, "n": 12, "diff": -73.5}, {"date": "2026-06-24", "srvey": 478.5, "agg": 516.0, "disc_rest": 37.5, "disc_agg": 0.0, "commission": 142.97, "vat": 27.17, "fees": 0, "payout": 308.35, "cancelled": 0, "n": 8, "diff": -37.5}, {"date": "2026-06-25", "srvey": 649.25, "agg": 740.0, "disc_rest": 30.750000000000004, "disc_agg": 0.0, "commission": 197.49, "vat": 35.13, "fees": 0, "payout": 434.63, "cancelled": 0, "n": 11, "diff": -90.75}, {"date": "2026-06-26", "srvey": 1203.15, "agg": 1329.0, "disc_rest": 125.85, "disc_agg": 0.0, "commission": 366.71, "vat": 68.5, "fees": 0, "payout": 767.88, "cancelled": 0, "n": 20, "diff": -125.85}, {"date": "2026-06-27", "srvey": 1055.55, "agg": 1239.0, "disc_rest": 118.35, "disc_agg": 0.0, "commission": 329.98, "vat": 58.97, "fees": 0, "payout": 679.35, "cancelled": 0, "n": 19, "diff": -183.45}, {"date": "2026-06-28", "srvey": 1719.2, "agg": 2178.0, "disc_rest": 241.80000000000007, "disc_agg": 0.0, "commission": 509.36, "vat": 99.65, "fees": 0, "payout": 1165.8199999999997, "cancelled": 0, "n": 24, "diff": -458.8}, {"date": "2026-06-30", "srvey": 287.0, "agg": 314.0, "disc_rest": 27.0, "disc_agg": 0.0, "commission": 88.35, "vat": 15.870000000000001, "fees": 0, "payout": 182.77, "cancelled": 0, "n": 4, "diff": -27.0}], "totals": {"srvey": 22291.55, "agg": 23471.0, "diff": -1179.45, "disc_rest": 1125.75, "disc_agg": 0.0, "commission": 6546.72, "vat": 1167.43, "payout": 14127.59, "cancelled": 10}}, {"channel": "Keeta", "note": "Gross = Original price; Srvey records net of merchant promo.", "days": [{"date": "2026-06-02", "srvey": 160.1, "agg": 180.0, "disc_rest": 19.9, "disc_agg": 0, "commission": 40.03, "vat": 0, "fees": 0, "payout": 120.07, "cancelled": 0, "n": 5, "diff": -19.9}, {"date": "2026-06-03", "srvey": 106.0, "agg": 118.0, "disc_rest": 12.0, "disc_agg": 0, "commission": 26.5, "vat": 0, "fees": 0, "payout": 79.5, "cancelled": 0, "n": 3, "diff": -12.0}, {"date": "2026-06-05", "srvey": 53.0, "agg": 61.0, "disc_rest": 8.0, "disc_agg": 0, "commission": 13.25, "vat": 0, "fees": 0, "payout": 39.75, "cancelled": 0, "n": 2, "diff": -8.0}, {"date": "2026-06-06", "srvey": 86.0, "agg": 94.0, "disc_rest": 8.0, "disc_agg": 0, "commission": 21.5, "vat": 0, "fees": 0, "payout": 64.5, "cancelled": 0, "n": 2, "diff": -8.0}, {"date": "2026-06-07", "srvey": 281.0, "agg": 297.0, "disc_rest": 16.0, "disc_agg": 0, "commission": 70.25, "vat": 0, "fees": 0, "payout": 210.75, "cancelled": 0, "n": 4, "diff": -16.0}, {"date": "2026-06-10", "srvey": 60.0, "agg": 68.0, "disc_rest": 8.0, "disc_agg": 0, "commission": 15.0, "vat": 0, "fees": 0, "payout": 45.0, "cancelled": 0, "n": 2, "diff": -8.0}, {"date": "2026-06-11", "srvey": 125.0, "agg": 137.0, "disc_rest": 12.0, "disc_agg": 0, "commission": 31.25, "vat": 0, "fees": 0, "payout": 93.75, "cancelled": 0, "n": 3, "diff": -12.0}, {"date": "2026-06-12", "srvey": 347.0, "agg": 359.0, "disc_rest": 12.0, "disc_agg": 0, "commission": 86.75, "vat": 0, "fees": 0, "payout": 260.25, "cancelled": 0, "n": 3, "diff": -12.0}, {"date": "2026-06-14", "srvey": 378.0, "agg": 406.0, "disc_rest": 28.0, "disc_agg": 0, "commission": 94.5, "vat": 0, "fees": 0, "payout": 283.5, "cancelled": 0, "n": 7, "diff": -28.0}, {"date": "2026-06-15", "srvey": 219.0, "agg": 243.0, "disc_rest": 24.0, "disc_agg": 0, "commission": 54.75, "vat": 0, "fees": 0, "payout": 164.25, "cancelled": 0, "n": 6, "diff": -24.0}, {"date": "2026-06-17", "srvey": 65.0, "agg": 69.0, "disc_rest": 4.0, "disc_agg": 0, "commission": 16.25, "vat": 0, "fees": 0, "payout": 48.75, "cancelled": 0, "n": 1, "diff": -4.0}, {"date": "2026-06-18", "srvey": 116.0, "agg": 120.0, "disc_rest": 4.0, "disc_agg": 0, "commission": 29.0, "vat": 0, "fees": 0, "payout": 87.0, "cancelled": 0, "n": 1, "diff": -4.0}, {"date": "2026-06-19", "srvey": 30.0, "agg": 34.0, "disc_rest": 4.0, "disc_agg": 0, "commission": 7.5, "vat": 0, "fees": 0, "payout": 22.5, "cancelled": 0, "n": 1, "diff": -4.0}, {"date": "2026-06-20", "srvey": 194.0, "agg": 180.0, "disc_rest": 12.0, "disc_agg": 0, "commission": 42.0, "vat": 0, "fees": 0, "payout": 126.0, "cancelled": 1, "n": 4, "diff": 14.0}, {"date": "2026-06-21", "srvey": 666.0, "agg": 690.0, "disc_rest": 24.0, "disc_agg": 0, "commission": 167.0, "vat": 0, "fees": 0, "payout": 499.0, "cancelled": 0, "n": 6, "diff": -24.0}, {"date": "2026-06-24", "srvey": 138.0, "agg": 154.0, "disc_rest": 16.0, "disc_agg": 0, "commission": 34.5, "vat": 0, "fees": 0, "payout": 103.5, "cancelled": 0, "n": 4, "diff": -16.0}, {"date": "2026-06-25", "srvey": 22.0, "agg": 26.0, "disc_rest": 4.0, "disc_agg": 0, "commission": 6.0, "vat": 0, "fees": 0, "payout": 16.0, "cancelled": 0, "n": 1, "diff": -4.0}, {"date": "2026-06-26", "srvey": 313.0, "agg": 317.0, "disc_rest": 4.0, "disc_agg": 0, "commission": 78.25, "vat": 0, "fees": 0, "payout": 234.75, "cancelled": 0, "n": 1, "diff": -4.0}, {"date": "2026-06-27", "srvey": 206.0, "agg": 218.0, "disc_rest": 12.0, "disc_agg": 0, "commission": 51.5, "vat": 0, "fees": 0, "payout": 154.5, "cancelled": 0, "n": 3, "diff": -12.0}, {"date": "2026-06-28", "srvey": 112.0, "agg": 120.0, "disc_rest": 8.0, "disc_agg": 0, "commission": 28.0, "vat": 0, "fees": 0, "payout": 84.0, "cancelled": 0, "n": 2, "diff": -8.0}, {"date": "2026-06-30", "srvey": 264.0, "agg": 276.0, "disc_rest": 12.0, "disc_agg": 0, "commission": 66.0, "vat": 0, "fees": 0, "payout": 198.0, "cancelled": 0, "n": 3, "diff": -12.0}], "totals": {"srvey": 3941.1, "agg": 4167.0, "diff": -225.9, "disc_rest": 251.9, "disc_agg": 0, "commission": 979.78, "vat": 0, "payout": 2935.32, "cancelled": 1}}, {"channel": "Deliveroo", "note": "In-period Jun2-23 ties; Jun24-30 = report gap (no file).", "days": [{"date": "2026-06-02", "srvey": 75.0, "agg": 75.0, "disc_rest": 0, "disc_agg": 0, "commission": 22.5, "vat": 1.13, "fees": 0, "payout": 51.37, "cancelled": 0, "n": 1, "diff": 0.0}, {"date": "2026-06-03", "srvey": 595.0, "agg": 595.0, "disc_rest": 0, "disc_agg": 0, "commission": 178.5, "vat": 8.93, "fees": 0, "payout": 407.57, "cancelled": 0, "n": 3, "diff": 0.0}, {"date": "2026-06-04", "srvey": 343.0, "agg": 343.0, "disc_rest": 0, "disc_agg": 0, "commission": 102.89999999999999, "vat": 5.16, "fees": 0, "payout": 234.94, "cancelled": 0, "n": 4, "diff": 0.0}, {"date": "2026-06-05", "srvey": 101.0, "agg": 101.0, "disc_rest": 0, "disc_agg": 0, "commission": 30.3, "vat": 1.52, "fees": 0, "payout": 69.18, "cancelled": 0, "n": 2, "diff": 0.0}, {"date": "2026-06-06", "srvey": 719.0, "agg": 719.0, "disc_rest": 0, "disc_agg": 0, "commission": 215.70000000000002, "vat": 10.809999999999999, "fees": 0, "payout": 492.49, "cancelled": 1, "n": 10, "diff": 0.0}, {"date": "2026-06-07", "srvey": 967.0, "agg": 967.0, "disc_rest": 0, "disc_agg": 0, "commission": 290.09999999999997, "vat": 14.53, "fees": 0, "payout": 662.3699999999999, "cancelled": 0, "n": 9, "diff": 0.0}, {"date": "2026-06-09", "srvey": 0.0, "agg": 0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 1, "n": 1, "diff": 0.0}, {"date": "2026-06-10", "srvey": 75.0, "agg": 75.0, "disc_rest": 0, "disc_agg": 0, "commission": 22.5, "vat": 1.1300000000000001, "fees": 0, "payout": 51.37, "cancelled": 0, "n": 2, "diff": 0.0}, {"date": "2026-06-11", "srvey": 56.0, "agg": 56.0, "disc_rest": 0, "disc_agg": 0, "commission": 16.8, "vat": 0.84, "fees": 0, "payout": 38.36, "cancelled": 0, "n": 1, "diff": 0.0}, {"date": "2026-06-12", "srvey": 749.0, "agg": 749.0, "disc_rest": 0, "disc_agg": 0, "commission": 224.7, "vat": 11.239999999999998, "fees": 0, "payout": 513.06, "cancelled": 0, "n": 5, "diff": 0.0}, {"date": "2026-06-13", "srvey": 831.0, "agg": 819.0, "disc_rest": 0, "disc_agg": 0, "commission": 245.70000000000005, "vat": 12.309999999999997, "fees": 0, "payout": 560.99, "cancelled": 0, "n": 9, "diff": 12.0}, {"date": "2026-06-14", "srvey": 626.0, "agg": 638.0, "disc_rest": 0, "disc_agg": 0, "commission": 191.39999999999998, "vat": 9.579999999999998, "fees": 0, "payout": 437.02000000000004, "cancelled": 0, "n": 8, "diff": -12.0}, {"date": "2026-06-16", "srvey": 75.0, "agg": 75.0, "disc_rest": 0, "disc_agg": 0, "commission": 22.5, "vat": 1.13, "fees": 0, "payout": 51.37, "cancelled": 1, "n": 2, "diff": 0.0}, {"date": "2026-06-18", "srvey": 30.0, "agg": 30.0, "disc_rest": 0, "disc_agg": 0, "commission": 9.0, "vat": 0.45, "fees": 0, "payout": 20.55, "cancelled": 0, "n": 1, "diff": 0.0}, {"date": "2026-06-19", "srvey": 498.0, "agg": 498.0, "disc_rest": 0, "disc_agg": 0, "commission": 149.4, "vat": 7.47, "fees": 0, "payout": 341.13, "cancelled": 0, "n": 2, "diff": 0.0}, {"date": "2026-06-20", "srvey": 665.0, "agg": 665.0, "disc_rest": 0, "disc_agg": 0, "commission": 199.5, "vat": 9.98, "fees": 0, "payout": 455.52, "cancelled": 0, "n": 6, "diff": 0.0}, {"date": "2026-06-21", "srvey": 842.0, "agg": 842.0, "disc_rest": 0, "disc_agg": 0, "commission": 252.6, "vat": 12.64, "fees": 0, "payout": 576.7599999999999, "cancelled": 0, "n": 8, "diff": 0.0}, {"date": "2026-06-23", "srvey": 1039.0, "agg": 1039.0, "disc_rest": 0, "disc_agg": 0, "commission": 311.7, "vat": 15.6, "fees": 0, "payout": 711.6999999999999, "cancelled": 0, "n": 5, "diff": 0.0}, {"date": "2026-06-24", "srvey": 56.0, "agg": 0.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 0, "n": 0, "diff": 56.0}, {"date": "2026-06-25", "srvey": 161.0, "agg": 0.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 0, "n": 0, "diff": 161.0}, {"date": "2026-06-26", "srvey": 2192.0, "agg": 0.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 0, "n": 0, "diff": 2192.0}, {"date": "2026-06-27", "srvey": 252.0, "agg": 0.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 0, "n": 0, "diff": 252.0}, {"date": "2026-06-28", "srvey": 459.0, "agg": 0.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 0, "n": 0, "diff": 459.0}, {"date": "2026-06-30", "srvey": 326.0, "agg": 0.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 0, "n": 0, "diff": 326.0}], "totals": {"srvey": 11732.0, "agg": 8286.0, "diff": 3446.0, "disc_rest": 0, "disc_agg": 0, "commission": 2485.8, "vat": 124.45, "payout": 5675.75, "cancelled": 3}}, {"channel": "Zomato", "note": "Daily-gross; pervasive date-shifting in book. July rows excluded.", "days": [{"date": "2026-06-02", "srvey": 64.0, "agg": 64.0, "disc_rest": 0, "disc_agg": 0, "commission": 2.74, "vat": 0.14, "fees": 0, "payout": 53.63, "cancelled": 0, "n": 1, "diff": 0.0}, {"date": "2026-06-03", "srvey": 235.0, "agg": 119.0, "disc_rest": 0, "disc_agg": 0, "commission": 5.1, "vat": 0.26, "fees": 0, "payout": 99.71, "cancelled": 0, "n": 1, "diff": 116.0}, {"date": "2026-06-04", "srvey": 103.2, "agg": 245.0, "disc_rest": 0, "disc_agg": 0, "commission": 10.5, "vat": 0.53, "fees": 0, "payout": 205.31, "cancelled": 0, "n": 2, "diff": -141.8}, {"date": "2026-06-05", "srvey": 155.0, "agg": 155.0, "disc_rest": 0, "disc_agg": 0, "commission": 6.64, "vat": 0.33, "fees": 0, "payout": 129.89, "cancelled": 0, "n": 1, "diff": 0.0}, {"date": "2026-06-06", "srvey": 205.0, "agg": 206.0, "disc_rest": 0, "disc_agg": 0, "commission": 9.81, "vat": 0.49, "fees": 0, "payout": 191.8, "cancelled": 0, "n": 1, "diff": -1.0}, {"date": "2026-06-07", "srvey": 153.0, "agg": 153.0, "disc_rest": 0, "disc_agg": 0, "commission": 7.279999999999999, "vat": 0.36, "fees": 0, "payout": 142.45999999999998, "cancelled": 0, "n": 2, "diff": 0.0}, {"date": "2026-06-09", "srvey": 616.0, "agg": 0.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 0, "n": 0, "diff": 616.0}, {"date": "2026-06-10", "srvey": 0.0, "agg": 616.0, "disc_rest": 0, "disc_agg": 0, "commission": 26.4, "vat": 1.32, "fees": 0, "payout": 516.2, "cancelled": 0, "n": 1, "diff": -616.0}, {"date": "2026-06-12", "srvey": 239.0, "agg": 239.0, "disc_rest": 0, "disc_agg": 0, "commission": 10.24, "vat": 0.52, "fees": 0, "payout": 200.26999999999998, "cancelled": 0, "n": 2, "diff": 0.0}, {"date": "2026-06-13", "srvey": 70.0, "agg": 70.0, "disc_rest": 0, "disc_agg": 0, "commission": 3.3299999999999996, "vat": 0.17, "fees": 0, "payout": 65.17999999999999, "cancelled": 0, "n": 2, "diff": 0.0}, {"date": "2026-06-14", "srvey": 465.0, "agg": 248.0, "disc_rest": 0, "disc_agg": 0, "commission": 11.809999999999999, "vat": 0.5900000000000001, "fees": 0, "payout": 230.91, "cancelled": 0, "n": 2, "diff": 217.0}, {"date": "2026-06-15", "srvey": 184.0, "agg": 401.0, "disc_rest": 0, "disc_agg": 0, "commission": 19.09, "vat": 0.96, "fees": 0, "payout": 373.36, "cancelled": 0, "n": 2, "diff": -217.0}, {"date": "2026-06-17", "srvey": 55.0, "agg": 55.0, "disc_rest": 0, "disc_agg": 0, "commission": 2.1, "vat": 0.1, "fees": 0, "payout": 40.97, "cancelled": 0, "n": 1, "diff": 0.0}, {"date": "2026-06-18", "srvey": 149.0, "agg": 149.0, "disc_rest": 0, "disc_agg": 0, "commission": 6.39, "vat": 0.32, "fees": 0, "payout": 124.86, "cancelled": 0, "n": 1, "diff": 0.0}, {"date": "2026-06-20", "srvey": 216.0, "agg": 0.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 0, "n": 0, "diff": 216.0}, {"date": "2026-06-21", "srvey": 237.0, "agg": 300.0, "disc_rest": 0, "disc_agg": 0, "commission": 14.29, "vat": 0.71, "fees": 0, "payout": 279.33, "cancelled": 0, "n": 2, "diff": -63.0}, {"date": "2026-06-22", "srvey": 0.0, "agg": 153.0, "disc_rest": 0, "disc_agg": 0, "commission": 7.29, "vat": 0.36, "fees": 0, "payout": 142.46, "cancelled": 0, "n": 1, "diff": -153.0}, {"date": "2026-06-23", "srvey": 69.0, "agg": 0.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 0, "n": 0, "diff": 69.0}, {"date": "2026-06-24", "srvey": 0.0, "agg": 69.0, "disc_rest": 0, "disc_agg": 0, "commission": 2.96, "vat": 0.15, "fees": 0, "payout": 57.81, "cancelled": 0, "n": 1, "diff": -69.0}, {"date": "2026-06-25", "srvey": 85.0, "agg": 0.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 0, "n": 0, "diff": 85.0}, {"date": "2026-06-26", "srvey": 153.0, "agg": 85.0, "disc_rest": 0, "disc_agg": 0, "commission": 3.64, "vat": 0.18, "fees": 0, "payout": 71.23, "cancelled": 0, "n": 1, "diff": 68.0}, {"date": "2026-06-27", "srvey": 461.0, "agg": 465.0, "disc_rest": 0, "disc_agg": 0, "commission": 21.419999999999998, "vat": 1.07, "fees": 0, "payout": 418.71000000000004, "cancelled": 0, "n": 3, "diff": -4.0}, {"date": "2026-06-28", "srvey": 252.0, "agg": 403.0, "disc_rest": 0, "disc_agg": 0, "commission": 19.19, "vat": 0.9600000000000001, "fees": 0, "payout": 375.22, "cancelled": 0, "n": 3, "diff": -151.0}, {"date": "2026-06-30", "srvey": 97.0, "agg": 97.0, "disc_rest": 0, "disc_agg": 0, "commission": 4.16, "vat": 0.21, "fees": 0, "payout": 81.28, "cancelled": 0, "n": 1, "diff": 0.0}], "totals": {"srvey": 4263.2, "agg": 4292.0, "diff": -28.8, "disc_rest": 0, "disc_agg": 0, "commission": 194.38, "vat": 9.73, "payout": 3800.59, "cancelled": 0}}, {"channel": "Noon", "note": "Export has gross only (no commission/payout columns).", "days": [{"date": "2026-06-02", "srvey": 162.0, "agg": 162.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 0, "n": 2, "diff": 0.0}, {"date": "2026-06-03", "srvey": 494.0, "agg": 494.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 0, "n": 9, "diff": 0.0}, {"date": "2026-06-04", "srvey": 101.0, "agg": 101.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 0, "n": 2, "diff": 0.0}, {"date": "2026-06-05", "srvey": 394.0, "agg": 394.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 0, "n": 4, "diff": 0.0}, {"date": "2026-06-06", "srvey": 502.0, "agg": 502.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 0, "n": 7, "diff": 0.0}, {"date": "2026-06-07", "srvey": 592.0, "agg": 592.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 0, "n": 11, "diff": 0.0}, {"date": "2026-06-09", "srvey": 104.0, "agg": 104.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 0, "n": 2, "diff": 0.0}, {"date": "2026-06-10", "srvey": 537.0, "agg": 502.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 1, "n": 8, "diff": 35.0}, {"date": "2026-06-11", "srvey": 292.0, "agg": 292.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 0, "n": 5, "diff": 0.0}, {"date": "2026-06-12", "srvey": 761.0, "agg": 761.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 0, "n": 11, "diff": 0.0}, {"date": "2026-06-13", "srvey": 1114.0, "agg": 1114.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 0, "n": 14, "diff": 0.0}, {"date": "2026-06-14", "srvey": 836.0, "agg": 748.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 1, "n": 10, "diff": 88.0}, {"date": "2026-06-15", "srvey": 717.0, "agg": 717.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 0, "n": 11, "diff": 0.0}, {"date": "2026-06-16", "srvey": 278.0, "agg": 278.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 0, "n": 5, "diff": 0.0}, {"date": "2026-06-17", "srvey": 113.0, "agg": 113.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 0, "n": 3, "diff": 0.0}, {"date": "2026-06-18", "srvey": 293.0, "agg": 293.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 0, "n": 3, "diff": 0.0}, {"date": "2026-06-19", "srvey": 328.0, "agg": 328.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 0, "n": 6, "diff": 0.0}, {"date": "2026-06-20", "srvey": 315.0, "agg": 315.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 0, "n": 4, "diff": 0.0}, {"date": "2026-06-21", "srvey": 486.0, "agg": 486.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 0, "n": 9, "diff": 0.0}, {"date": "2026-06-23", "srvey": 321.0, "agg": 321.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 0, "n": 8, "diff": 0.0}, {"date": "2026-06-24", "srvey": 541.0, "agg": 541.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 0, "n": 7, "diff": 0.0}, {"date": "2026-06-25", "srvey": 286.0, "agg": 286.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 0, "n": 7, "diff": 0.0}, {"date": "2026-06-26", "srvey": 407.0, "agg": 407.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 0, "n": 6, "diff": 0.0}, {"date": "2026-06-27", "srvey": 276.0, "agg": 276.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 0, "n": 7, "diff": 0.0}, {"date": "2026-06-28", "srvey": 817.0, "agg": 817.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 0, "n": 11, "diff": 0.0}, {"date": "2026-06-30", "srvey": 133.0, "agg": 133.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 0, "n": 4, "diff": 0.0}], "totals": {"srvey": 11200.0, "agg": 11077.0, "diff": 123.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "payout": 0, "cancelled": 2}}, {"channel": "UTAP", "note": "Card terminal SOA. Date-shifts + May31 prior-period item.", "days": [{"date": "2026-05-31", "srvey": 0.0, "agg": 258.0, "disc_rest": 0, "disc_agg": 0, "commission": 5.93, "vat": 0.3, "fees": 0, "payout": 250.72, "cancelled": 0, "n": 1, "diff": -258.0}, {"date": "2026-06-02", "srvey": 269.0, "agg": 269.0, "disc_rest": 0, "disc_agg": 0, "commission": 6.19, "vat": 0.31, "fees": 0, "payout": 260.4, "cancelled": 0, "n": 2, "diff": 0.0}, {"date": "2026-06-04", "srvey": 483.0, "agg": 1129.0, "disc_rest": 0, "disc_agg": 0, "commission": 25.97, "vat": 1.3, "fees": 0, "payout": 1098.58, "cancelled": 0, "n": 3, "diff": -646.0}, {"date": "2026-06-05", "srvey": 1462.0, "agg": 816.0, "disc_rest": 0, "disc_agg": 0, "commission": 18.77, "vat": 0.94, "fees": 0, "payout": 794.19, "cancelled": 0, "n": 2, "diff": 646.0}, {"date": "2026-06-06", "srvey": 270.0, "agg": 282.0, "disc_rest": 0, "disc_agg": 0, "commission": 6.38, "vat": 0.32, "fees": 0, "payout": 272.46, "cancelled": 0, "n": 4, "diff": -12.0}, {"date": "2026-06-11", "srvey": 148.0, "agg": 148.0, "disc_rest": 0, "disc_agg": 0, "commission": 3.4, "vat": 0.17, "fees": 0, "payout": 143.38, "cancelled": 0, "n": 1, "diff": 0.0}, {"date": "2026-06-12", "srvey": 175.0, "agg": 175.0, "disc_rest": 0, "disc_agg": 0, "commission": 4.03, "vat": 0.2, "fees": 0, "payout": 169.72, "cancelled": 0, "n": 1, "diff": 0.0}, {"date": "2026-06-15", "srvey": 45.0, "agg": 45.0, "disc_rest": 0, "disc_agg": 0, "commission": 1.04, "vat": 0.05, "fees": 0, "payout": 42.86, "cancelled": 0, "n": 1, "diff": 0.0}, {"date": "2026-06-17", "srvey": 68.0, "agg": 68.0, "disc_rest": 0, "disc_agg": 0, "commission": 1.56, "vat": 0.08, "fees": 0, "payout": 65.31, "cancelled": 0, "n": 1, "diff": 0.0}, {"date": "2026-06-18", "srvey": 0.0, "agg": 626.0, "disc_rest": 0, "disc_agg": 0, "commission": 14.4, "vat": 0.73, "fees": 0, "payout": 608.77, "cancelled": 0, "n": 2, "diff": -626.0}, {"date": "2026-06-19", "srvey": 1347.0, "agg": 721.0, "disc_rest": 0, "disc_agg": 0, "commission": 16.59, "vat": 0.83, "fees": 0, "payout": 700.43, "cancelled": 0, "n": 3, "diff": 626.0}, {"date": "2026-06-20", "srvey": 0.0, "agg": 0.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 0, "n": 0, "diff": 0.0}, {"date": "2026-06-21", "srvey": 70.0, "agg": 70.0, "disc_rest": 0, "disc_agg": 0, "commission": 1.61, "vat": 0.08, "fees": 0, "payout": 67.26, "cancelled": 0, "n": 1, "diff": 0.0}, {"date": "2026-06-23", "srvey": 84.0, "agg": 84.0, "disc_rest": 0, "disc_agg": 0, "commission": 1.93, "vat": 0.1, "fees": 0, "payout": 80.92, "cancelled": 0, "n": 1, "diff": 0.0}, {"date": "2026-06-27", "srvey": 0.0, "agg": 0.0, "disc_rest": 0, "disc_agg": 0, "commission": 0, "vat": 0, "fees": 0, "payout": 0, "cancelled": 0, "n": 0, "diff": 0.0}], "totals": {"srvey": 4421.0, "agg": 4691.0, "diff": -270.0, "disc_rest": 0, "disc_agg": 0, "commission": 107.8, "vat": 5.41, "payout": 4555.0, "cancelled": 0}}]};
+const PAL = {"Talabat": "#ED1C24", "Keeta": "#00B389", "Deliveroo": "#FF3800", "Zomato": "#E23744", "Noon": "#1E73BE", "UTAP": "#6B4EFF"};
+const state = {channels:new Set(DATA.channels.map(c=>c.channel)), from:null, to:null};
+
+function dmin(){let m=null;DATA.channels.forEach(c=>c.days.forEach(d=>{if(!m||d.date<m)m=d.date;}));return m;}
+function dmax(){let m=null;DATA.channels.forEach(c=>c.days.forEach(d=>{if(!m||d.date>m)m=d.date;}));return m;}
+
+function filtDays(){
+  const f=state.from, t=state.to;
+  const out=[];
+  DATA.channels.forEach(c=>{
+    if(!state.channels.has(c.channel)) return;
+    c.days.forEach(d=>{
+      if(f&&d.date<f) return; if(t&&d.date>t) return;
+      out.push(Object.assign({channel:c.channel}, d));
+    });
+  });
+  out.sort((a,b)=>a.date<b.date?-1:1);
+  return out;
+}
+
+function agg(rows){
+  const a={srvey:0,agg:0,diff:0,disc_rest:0,disc_agg:0,commission:0,vat:0,payout:0,cancelled:0,n:0};
+  rows.forEach(r=>{for(const k in a) if(k in r) a[k]+=r[k];});
+  return a;
+}
+
+function renderKPIs(){
+  const rows=filtDays(); const a=agg(rows);
+  const cards=[
+    {lb:'Gross (Platform)',v:a.agg,sub:'aggregator/terminal sales'},
+    {lb:'Srvey (Book)',v:a.srvey,sub:'staff-recorded'},
+    {lb:'Net Difference',v:a.diff,sub:(a.diff>=0?'book over':'platform over'),cls:a.diff>=0?'v-good':'v-bad'},
+    {lb:'Commission + VAT',v:a.commission+a.vat,sub:'fees deducted'},
+    {lb:'Payout',v:a.payout,sub:'net to restaurant',cls:'v-good'},
+  ];
+  document.getElementById('kpis').innerHTML=cards.map(c=>
+    `<div class="kpi"><div class="lb">${c.lb}</div><div class="vv ${c.cls||''}">AED ${fmt(c.v)}</div><div class="sub">${c.sub}</div></div>`
+  ).join('');
+}
+
+let lineChart,pieChart;
+function renderLine(){
+  const rows=filtDays();
+  // group by date
+  const byd={};
+  rows.forEach(r=>{byd[r.date]=byd[r.date]||{srvey:0,agg:0}; byd[r.date].srvey+=r.srvey; byd[r.date].agg+=r.agg;});
+  const dates=Object.keys(byd).sort();
+  const ctx=document.getElementById('line');
+  const ds=[
+    {label:'Srvey (book)',data:dates.map(d=>byd[d].srvey),borderColor:'#39d3a0',backgroundColor:'rgba(57,211,160,.12)',fill:true,tension:.3,pointRadius:2},
+    {label:'Platform',data:dates.map(d=>byd[d].agg),borderColor:'#5b8dff',backgroundColor:'rgba(91,141,255,.10)',fill:true,tension:.3,pointRadius:2},
+  ];
+  if(lineChart) lineChart.destroy();
+  lineChart=new Chart(ctx,{type:'line',data:{labels:dates,datasets:ds},
+    options:{plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#8b98a8',maxTicksLimit:10,autoSkip:true},grid:{color:'#222b38'}},
+      y:{ticks:{color:'#8b98a8',callback:v=>'AED '+(v/1000).toFixed(1)+'k'},grid:{color:'#222b38'}}}}});
+}
+
+function renderBridge(){
+  const rows=filtDays(); const a=agg(rows);
+  const steps=[
+    {nm:'Platform gross',v:a.agg,cls:'fill',sign:1},
+    {nm:'Restaurant discounts',v:a.disc_rest,cls:'disc',sign:-1},
+    {nm:'Commission + VAT + fees',v:a.commission+a.vat,cls:'fee',sign:-1},
+    {nm:'Payout',v:a.payout,cls:'pay',sign:1},
+  ];
+  const max=Math.max(a.agg,1);
+  const el=document.getElementById('bridge');
+  el.innerHTML=steps.map(s=>{
+    const w=Math.max(2,(s.v/max)*100);
+    const sign=s.sign<0?'-':'';
+    return `<div class="brow"><div class="nm">${s.nm}</div>
+      <div class="bar"><div class="${s.cls}" style="width:${w}%"></div></div>
+      <div class="val ${s.cls==='pay'?'v-good':(s.sign<0?'v-warn':'')}">${sign}AED ${fmt(s.v)}</div></div>`;
+  }).join('');
+}
+
+function renderTable(){
+  const rows=filtDays(); const tb=document.querySelector('#tbl tbody');
+  tb.innerHTML=rows.map(r=>{
+    const d=r.diff>=0?'pos':'neg';
+    return `<tr><td>${r.date}</td><td class="num">${fmt(r.srvey)}</td><td class="num">${fmt(r.agg)}</td>
+      <td class="num ${d}">${r.diff>=0?'+':''}${fmt(r.diff)}</td>
+      <td class="num">${fmt(r.disc_rest)}</td><td class="num">${fmt(r.commission)}</td>
+      <td class="num">${fmt(r.vat)}</td><td class="num">${fmt(r.payout)}</td><td class="num">${r.cancelled||0}</td></tr>`;
+  }).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--mut)">No data in range</td></tr>';
+  // note
+  const a=agg(rows);
+  const ch=[...state.channels];
+  let msg='';
+  if(ch.length===1){
+    const c=DATA.channels.find(x=>x.channel===ch[0]);
+    msg=`<b>${c.channel}:</b> ${c.note}`;
+    if(c.channel==='Talabat' && a.disc_rest>0){
+      msg+=` · The daily shortfall vs Srvey is explained by restaurant-funded vouchers (AED ${fmt(a.disc_rest)} over range) and cancelled orders (${a.cancelled}), not missing sales.`;
+    }
+  } else {
+    msg='Select a single channel to see its reconciliation note. Use the chips + date range to drill in.';
+  }
+  document.getElementById('note').innerHTML=msg;
+}
+
+function renderPie(){
+  const rows=filtDays();
+  const byc={};
+  rows.forEach(r=>{byc[r.channel]=byc[r.channel]||0; byc[r.channel]+=r.agg;});
+  const labels=Object.keys(byc), vals=Object.values(byc);
+  const cols=labels.map(l=>PAL[l]||'#888');
+  const ctx=document.getElementById('pie');
+  if(pieChart) pieChart.destroy();
+  pieChart=new Chart(ctx,{type:'doughnut',data:{labels,datasets:[{data:vals,backgroundColor:cols,borderColor:'#161b22',borderWidth:2}]},
+    options:{plugins:{legend:{display:false}},cutout:'62%'}});
+  document.getElementById('pielg').innerHTML=labels.map((l,i)=>
+    `<span><i style="background:${cols[i]}"></i>${l} · AED ${fmt(vals[i])}</span>`).join('');
+}
+
+function renderAll(){renderKPIs();renderLine();renderBridge();renderTable();renderPie();}
+
+function buildChips(){
+  const el=document.getElementById('chips');
+  el.innerHTML=DATA.channels.map(c=>`<span class="chip on" data-c="${c.channel}">${c.channel}</span>`).join('');
+  el.querySelectorAll('.chip').forEach(ch=>{
+    ch.onclick=()=>{const c=ch.dataset.c;
+      if(state.channels.has(c)){if(state.channels.size>1){state.channels.delete(c);ch.classList.remove('on');}}
+      else{state.channels.add(c);ch.classList.add('on');}
+      renderAll();};
+  });
+}
+
+document.getElementById('from').onchange=e=>{state.from=e.target.value;renderAll();};
+document.getElementById('to').onchange=e=>{state.to=e.target.value;renderAll();};
+document.getElementById('reset').onclick=()=>{
+  state.channels=new Set(DATA.channels.map(c=>c.channel));
+  state.from=dmin();state.to=dmax();
+  document.getElementById('from').value=state.from;document.getElementById('to').value=state.to;
+  document.querySelectorAll('#chips .chip').forEach(c=>c.classList.add('on'));
+  renderAll();
+};
+
+state.from=dmin();state.to=dmax();
+buildChips();renderAll();
+</script>
+</body>
+</html>
